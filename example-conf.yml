@@ -28,6 +28,10 @@ repo_config:
   auto_init: false
   gitignore_template: ''
 
-# Other teams to add to every repo. If empty we do not add any extra teams.
+# Other teams to add to every repo. If empty we do not add any extra teams
+# If team does not already exist program exits.
+# permission can be: pull, push, admin
 teams:
-    - Instructors
+  -
+    name: Instructors
+    permission: admin

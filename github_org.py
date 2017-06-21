@@ -67,13 +67,14 @@ class GithubOrganizationManager:
 
     def find_teams(self):
         """Finds the teams mentioned in -conf.yml and
-        returns a list of them."""
+        returns a list of {team: Team, permission: thepermission, name: thename"."""
         found_teams = []
         for config_team in self._config['teams']:
             found = False
             for team in self._organization.get_teams():
-                if config_team.lower() == team.name.lower():
-                    found_teams.append(team)
+                if config_team['name'].lower() == team.name.lower():
+                    config_team['team'] = team
+                    found_teams.append(config_team)
                     found = True
             if not found:
                 print("%s team not found. Exiting." % config_team['name'])
@@ -141,8 +142,8 @@ class GithubOrganizationManager:
                 repo = self.get_or_create_repo(repo_name)
                 team.add_to_repos(repo)
                 for config_team in self._teams: # Add all the global teams to this repo.
-                    config_team.add_to_repos(repo)
-
+                    config_team['team'].add_to_repos(repo)
+                    config_team['team'].set_repo_permission(repo, config_team['permission'])
             print "  users:"
             self.add_members_to_team(team, teams[team_name])
 
