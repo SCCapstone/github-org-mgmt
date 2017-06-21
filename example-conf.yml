@@ -27,3 +27,7 @@ repo_config:
   has_downloads: true
   auto_init: false
   gitignore_template: ''
+
+# Other teams to add to every repo. If empty we do not add any extra teams.
+teams:
+    - Instructors

@@ -17,6 +17,7 @@ class GithubOrganizationManager:
         self._github = Github(self._config['user'], self._config['password'])
         self._organization = \
             self._github.get_organization(self._config['organization'])
+        self._teams = self.find_teams() # the teams that must be added to all repos
 
     def repo_names(self):
         names = self._config['repos']
@@ -64,6 +65,21 @@ class GithubOrganizationManager:
 
         return teams
 
+    def find_teams(self):
+        """Finds the teams mentioned in -conf.yml and
+        returns a list of them."""
+        found_teams = []
+        for config_team in self._config['teams']:
+            found = False
+            for team in self._organization.get_teams():
+                if config_team.lower() == team.name.lower():
+                    found_teams.append(team)
+                    found = True
+            if not found:
+                print("%s team not found. Exiting." % config_team['name'])
+                raise SystemExit
+        return found_teams
+
     def read_config(self):
         """Read the configuration for this organization.
         The file should be in Yaml format. See ‘org-conf.yml.example’.
@@ -88,6 +104,7 @@ class GithubOrganizationManager:
             if e.data['errors'][0]['code'] != 'already_exists':
                 raise SystemExit
         # Team already exists, find it and return it.
+        # print("team %s already exists" % name)
         for t in self._organization.get_teams():
             if name.lower() == t.name.lower():
                 return t
@@ -97,7 +114,7 @@ class GithubOrganizationManager:
         """Get the repo with name, or create one if none exists."""
         try:
             repo = self._organization.get_repo(name)
-            print("%s already exists" % name)
+            # print("repo %s already exists" % name)
             return repo
         except GithubException as e:
             if e.status != 404:
@@ -123,6 +140,8 @@ class GithubOrganizationManager:
                 print "    - %s" % repo_name
                 repo = self.get_or_create_repo(repo_name)
                 team.add_to_repos(repo)
+                for config_team in self._teams: # Add all the global teams to this repo.
+                    config_team.add_to_repos(repo)
 
             print "  users:"
             self.add_members_to_team(team, teams[team_name])
