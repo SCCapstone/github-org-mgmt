@@ -52,7 +52,7 @@ class GithubOrganizationManager:
                 try:
                     user = self._github.get_user(login)
 
-                    if(team_name not in teams):
+                    if team_name not in teams:
                         # Add a new key to the teams dict, and
                         # add the first user to the member list
                         teams[team_name] = [user]
@@ -79,6 +79,35 @@ class GithubOrganizationManager:
                    "See e.g. org-conf.yml.example") % config_file_name
             raise SystemExit
 
+    def get_or_create_team(self, name):
+        """Get the team with name, or create one if none exists."""
+        try:
+            team = self._organization.create_team(name)
+            return team
+        except GithubException as e:
+            if e.data['errors'][0]['code'] != 'already_exists':
+                raise SystemExit
+        # Team already exists, find it and return it.
+        for t in self._organization.get_teams():
+            if name.lower() == t.name.lower():
+                return t
+        raise SystemExit
+
+    def get_or_create_repo(self, name):
+        """Get the repo with name, or create one if none exists."""
+        try:
+            repo = self._organization.get_repo(name)
+            print("%s already exists" % name)
+            return repo
+        except GithubException as e:
+            if e.status != 404:
+                raise SystemExit
+        # repo was not found, so create it.
+        print("Creating %s" % name)
+        repo_config = self._config['repo_config']
+        repo = self._organization.create_repo(name, **repo_config)
+        return repo
+
     def add_teams_to_org(self, teams):
         """Adds the specified teams to the organization, including team
         members"""
@@ -86,13 +115,13 @@ class GithubOrganizationManager:
 
         for team_name in sorted(teams.keys()):
             print "- team: %s\n  repos:" % team_name
-            team = self._organization.create_team(team_name)
+            team = self.get_or_create_team(team_name)
             team.edit(team_name, permission=self._config['repo_access'])
 
             for rname in self.repo_names():
                 repo_name = team_name + rname
                 print "    - %s" % repo_name
-                repo = self._organization.create_repo(repo_name, **repo_config)
+                repo = self.get_or_create_repo(repo_name)
                 team.add_to_repos(repo)
 
             print "  users:"
