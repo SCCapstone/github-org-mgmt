@@ -1,6 +1,6 @@
 # coding=utf8
 #
-
+# TODO Add all users to a given team
 import yaml
 import csv
 from github import Github, NamedUser
@@ -18,6 +18,9 @@ class GithubOrganizationManager:
         self._organization = \
             self._github.get_organization(self._config['organization'])
         self._teams = self.find_teams() # the teams that must be added to all repos
+        # _team is the team everyone is added to
+        team_name = self._config['team'] if self._config.has_key('team') else None
+        self._team = self.get_or_create_team(team_name)
 
     def repo_names(self):
         names = self._config['repos']
@@ -103,6 +106,8 @@ class GithubOrganizationManager:
             return team
         except GithubException as e:
             if e.data['errors'][0]['code'] != 'already_exists':
+                print("Error")
+                print(e)
                 raise SystemExit
         # Team already exists, find it and return it.
         # print("team %s already exists" % name)
@@ -119,6 +124,8 @@ class GithubOrganizationManager:
             return repo
         except GithubException as e:
             if e.status != 404:
+                print("Error")
+                print(e)
                 raise SystemExit
         # repo was not found, so create it.
         print("Creating %s" % name)
@@ -132,6 +139,10 @@ class GithubOrganizationManager:
         repo_config = self._config['repo_config']
 
         for team_name in sorted(teams.keys()):
+            if team_name == '': # team name is empty, so just add users to the global team
+                if self._team:
+                    self.add_members_to_team(self._team, teams[team_name])
+                continue
             print "- team: %s\n  repos:" % team_name
             team = self.get_or_create_team(team_name)
             team.edit(team_name, permission=self._config['repo_access'])
@@ -144,14 +155,15 @@ class GithubOrganizationManager:
                 for config_team in self._teams: # Add all the global teams to this repo.
                     config_team['team'].add_to_repos(repo)
                     config_team['team'].set_repo_permission(repo, config_team['permission'])
-            print "  users:"
             self.add_members_to_team(team, teams[team_name])
+            if self._team: # add them to the global team, if any
+                self.add_members_to_team(self._team, teams[team_name])
 
     def add_members_to_team(self, team, members):
-        """Adds the members, a list of NamedUsers, to the team"""
+        """Adds the members, a list of NamedUsers, to the team and to self._team if it exists."""
 
         for member in members:
-            print "    - %s" % member.login
+            print "Adding %s to %s" % (member.login, team.name)
             self.__pygithub_add_membership(team, member)
 
     def __pygithub_add_membership(self, team, member):

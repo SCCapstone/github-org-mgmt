@@ -2,6 +2,10 @@
 # Organization name
 organization: example
 
+# Add all the people in the csv file to this team. Comment out if you
+# do not want it.
+team: Fall2017
+
 # User credentials. WARNING! This contains your password.
 # Don't put this under version control!
 user: horace
